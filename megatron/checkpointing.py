@@ -26,6 +26,17 @@ from megatron import mpu, get_args
 from megatron import get_args
 from megatron import print_rank_0
 
+_CHECKPOINT_VERSION = None
+
+def set_checkpoint_version(value):
+    global _CHECKPOINT_VERSION
+    assert _CHECKPOINT_VERSION is None, \
+        "checkpoint version already set"
+    _CHECKPOINT_VERSION = value
+
+def get_checkpoint_version():
+    global _CHECKPOINT_VERSION
+    return _CHECKPOINT_VERSION
 
 def check_checkpoint_args(checkpoint_args):
     """Ensure fixed arguments for a model are the same for the input
@@ -91,54 +102,36 @@ def save_ds_checkpoint(iteration, model, args):
         sd['cuda_rng_state'] = torch.cuda.get_rng_state()
         sd['rng_tracker_states'] = mpu.get_cuda_rng_tracker().get_states()
 
-    #megatron model uses state_dict_for_save_checkpointing instead of the standard state_dict
-    #state_dict is used by deepspeed for module saving so it needs to point to the right function
-    model.module.state_dict = model.module.state_dict_for_save_checkpoint
-    model.save_checkpoint(args.save, iteration, client_state=sd)
+        # Arguments, iteration, and model.
+        state_dict = {}
+        state_dict['args'] = args
+        state_dict['checkpoint_version'] = 2.0
+        state_dict['iteration'] = iteration
+        state_dict['model'] = model.state_dict_for_save_checkpoint()
 
+        # Optimizer stuff.
+        if not args.no_save_optim:
+            if optimizer is not None:
+                state_dict['optimizer'] = optimizer.state_dict()
+            if lr_scheduler is not None:
+                state_dict['lr_scheduler'] = lr_scheduler.state_dict()
 
-def save_checkpoint(iteration, model, optimizer, lr_scheduler):
-    """Save a model checkpoint."""
-    args = get_args()
-    if args.deepspeed:
-        save_ds_checkpoint(iteration, model, args)
-    else:
-        # Only rank zero of the data parallel writes to the disk.
-        if isinstance(model, torchDDP):
-            model = model.module
-        if mpu.get_data_parallel_rank() == 0:
+        # RNG states.
+        if not args.no_save_rng:
+            state_dict['random_rng_state'] = random.getstate()
+            state_dict['np_rng_state'] = np.random.get_state()
+            state_dict['torch_rng_state'] = torch.get_rng_state()
+            state_dict['cuda_rng_state'] = torch.cuda.get_rng_state()
+            state_dict['rng_tracker_states'] \
+                = mpu.get_cuda_rng_tracker().get_states()
 
-            # Arguments, iteration, and model.
-            state_dict = {}
-            state_dict['args'] = args
-            state_dict['iteration'] = iteration
-            state_dict['model'] = model.state_dict_for_save_checkpoint()
-
-            # Optimizer stuff.
-            if not args.no_save_optim:
-                if optimizer is not None:
-                    state_dict['optimizer'] = optimizer.state_dict()
-                if lr_scheduler is not None:
-                    state_dict['lr_scheduler'] = lr_scheduler.state_dict()
-
-            # RNG states.
-            if not args.no_save_rng:
-                state_dict['random_rng_state'] = random.getstate()
-                state_dict['np_rng_state'] = np.random.get_state()
-                state_dict['torch_rng_state'] = torch.get_rng_state()
-                state_dict['cuda_rng_state'] = torch.cuda.get_rng_state()
-                state_dict['rng_tracker_states'] \
-                    = mpu.get_cuda_rng_tracker().get_states()
-
-            # Save.
-            checkpoint_name = get_checkpoint_name(args.save, iteration)
-            print(
-                'global rank {} is saving checkpoint at iteration {:7d} to {}'.
-                format(torch.distributed.get_rank(), iteration,
-                       checkpoint_name))
-            ensure_directory_exists(checkpoint_name)
-            torch.save(state_dict, checkpoint_name)
-            print('  successfully saved {}'.format(checkpoint_name))
+        # Save.
+        checkpoint_name = get_checkpoint_name(args.save, iteration)
+        print('global rank {} is saving checkpoint at iteration {:7d} to {}'.
+              format(torch.distributed.get_rank(), iteration, checkpoint_name))
+        ensure_directory_exists(checkpoint_name)
+        torch.save(state_dict, checkpoint_name)
+        print('  successfully saved {}'.format(checkpoint_name))
 
     # Wait so everyone is done (necessary)
     torch.distributed.barrier()
@@ -235,6 +228,9 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load'):
                     'exiting ...'.format(checkpoint_name))
                 sys.exit()
 
+    # set checkpoint version
+    set_checkpoint_version(state_dict.get('checkpoint_version', 0))
+
     # Set iteration.
     if args.finetune or release:
         iteration = 0
@@ -249,6 +245,7 @@ def load_checkpoint(model, optimizer, lr_scheduler, load_arg='load'):
                              'iteration from checkpoint {}, exiting'.format(
                                  checkpoint_name))
                 sys.exit()
+
 
     # Check arguments.
     if 'args' in state_dict:
