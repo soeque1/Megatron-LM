@@ -524,17 +524,9 @@ def _add_data_args(parser):
                        default='969, 30, 1',
                        help='Comma-separated list of proportions for training,'
                        ' validation, and test split. For example the split '
-<<<<<<< HEAD
-                       '`90,5,5` will use 90% of data for training, 5% for '
-                       'validation and 5% for test.')
-    group.add_argument('--vocab-file',
-                       type=str,
-                       default=None,
-=======
                        '`90,5,5` will use 90%% of data for training, 5%% for '
                        'validation and 5%% for test.')
     group.add_argument('--vocab-file', type=str, default=None,
->>>>>>> upstream/master
                        help='Path to the vocab file.')
     group.add_argument('--merge-file',
                        type=str,

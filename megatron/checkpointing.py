@@ -89,7 +89,7 @@ def get_checkpoint_tracker_filename(checkpoints_path):
     return os.path.join(checkpoints_path, 'latest_checkpointed_iteration.txt')
 
 
-def save_ds_checkpoint(iteration, model, args):
+def save_checkpoint(iteration, model, args):
     """Save a model checkpoint."""
 
     sd = {}

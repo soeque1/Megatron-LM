@@ -1,6 +1,6 @@
 #! /bin/bash
 
-GPUS_PER_NODE=16
+GPUS_PER_NODE=2
 # Change for multinode config
 MASTER_ADDR=localhost
 MASTER_PORT=6000
@@ -11,7 +11,7 @@ WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
 export DLWS_NUM_WORKER=${NNODES}
 export DLWS_NUM_GPU_PER_WORKER=${GPUS_PER_NODE}
 
-DATA_PATH=data/webtext/webtext_text_document
+DATA_PATH=data/my-gpt2_text_document
 CHECKPOINT_PATH=checkpoints/gpt2_345m_ds
 
 script_path=$(realpath $0)
@@ -24,7 +24,7 @@ mp_size=4
 NLAYERS=4
 NHIDDEN=512
 BATCHSIZE=32
-LOGDIR="/data/users/chengli1/gpt2/tensorboard_data/${NLAYERS}l_${NHIDDEN}h_${NNODES}n_${GPUS_PER_NODE}g_${mp_size}mp_${BATCHSIZE}b_ds4"
+LOGDIR="./gpt2/tensorboard_data/${NLAYERS}l_${NHIDDEN}h_${NNODES}n_${GPUS_PER_NODE}g_${mp_size}mp_${BATCHSIZE}b_ds4"
 
 #ZeRO Configs
 stage=0
@@ -89,13 +89,13 @@ gpt_options=" \
        #  --lazy-loader \
        #  --tokenizer-type GPT2BPETokenizer \
        #  --cache-dir cache \
-        
+
  deepspeed_options=" \
                 --deepspeed \
                 --deepspeed_config ${config_json} \
                 --zero-stage ${stage} \
                 --zero-reduce-bucket-size ${rbs} \
-                --zero-allgather-bucket-size ${agbs} 
+                --zero-allgather-bucket-size ${agbs}
             "
 #deepspeed_options=""
 

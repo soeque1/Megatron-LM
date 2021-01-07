@@ -168,7 +168,6 @@ def get_optimizer(model):
             if not hasattr(param, 'model_parallel'):
                 param.model_parallel = False
 
-<<<<<<< HEAD
     if args.cpu_optimizer:
         if args.cpu_torch_adam:
             cpu_adam_optimizer = torch.optim.Adam
@@ -188,11 +187,6 @@ def get_optimizer(model):
     if args.deepspeed:
         # fp16 wrapper is not required for DeepSpeed.
         return optimizer
-=======
-    # Use Adam.
-    optimizer = Adam(param_groups, lr=args.lr, weight_decay=args.weight_decay,
-        betas=(args.adam_beta1, args.adam_beta2), eps=args.adam_eps)
->>>>>>> upstream/master
 
     # Wrap into fp16 optimizer.
     if args.fp16:
@@ -454,21 +448,15 @@ def train(forward_step_func, model, optimizer, lr_scheduler,
 
     # Iterations.
     iteration = args.iteration
+    skipped_iters = 0
 
     timers('interval time').start()
     report_memory_flag = True
     while iteration < args.train_iters:
         loss_dict, skipped_iter = train_step(forward_step_func,
-<<<<<<< HEAD
                                              train_data_iterator, model,
                                              optimizer, lr_scheduler)
         skipped_iters += skipped_iter
-=======
-                                             train_data_iterator,
-                                             model,
-                                             optimizer,
-                                             lr_scheduler)
->>>>>>> upstream/master
         iteration += 1
 
         # Logging.
