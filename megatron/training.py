@@ -97,8 +97,8 @@ def pretrain(train_valid_test_dataset_provider,
 
     iteration = 0
     if args.do_train and args.train_iters > 0:
-        iteration, _ = train(forward_step_func, model, optimizer, lr_scheduler,
-                             train_data_iterator, valid_data_iterator)
+        iteration = train(forward_step_func, model, optimizer, lr_scheduler,
+                          train_data_iterator, valid_data_iterator)
 
     if args.do_valid:
         prefix = 'the end of training for val data'
